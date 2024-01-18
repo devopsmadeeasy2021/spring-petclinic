@@ -17,6 +17,7 @@ jobs:
       run: mvn test
   build:
     runs-on: ubuntu-latest
+    needs: test
     steps:
     - name: Checkout SCM
       uses: actions/checkout@v4
