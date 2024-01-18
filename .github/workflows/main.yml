@@ -13,8 +13,6 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: '17'
-    - name: Package the Application
-      run: mvn test
     - name: Cache local Maven repository
       uses: actions/cache@v3
       with:
@@ -22,6 +20,8 @@ jobs:
         key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
         restore-keys: |
           ${{ runner.os }}-maven-
+    - name: Package the Application
+      run: mvn test
   build:
     runs-on: ubuntu-latest
     needs: test
@@ -33,5 +33,12 @@ jobs:
       with:
         distribution: 'temurin'
         java-version: '17'
+    - name: Cache local Maven repository
+      uses: actions/cache@v3
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
     - name: Package the Application
       run: mvn package
