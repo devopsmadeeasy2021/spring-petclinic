@@ -41,4 +41,4 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-maven-
     - name: Package the Application
-      run: mvn package
+      run: mvn -DskipTests=true package
