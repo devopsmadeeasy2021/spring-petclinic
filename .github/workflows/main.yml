@@ -2,26 +2,28 @@ name: Java CI with Maven
 on:
   push:
     branches: [ "main" ]
-env:
-  IMAGE_NAME: "spring-maven-app"
-  DOCKERHUB_USERNAME: "kunchalavikram"
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout SCM
       uses: actions/checkout@v4
-    - name: list workspace contents
-      run: ls -al ${{ github.workspace }}
     - name: Setup Java and Maven
       uses: actions/setup-java@v4
       with:
         distribution: 'temurin'
         java-version: '17'
-    - name: Check java and mvn version
-      run: |
-        java -version
-        mvn --version
     - name: Package the Application
-      run: mvn -B package
-
+      run: mvn test
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout SCM
+      uses: actions/checkout@v4
+    - name: Setup Java and Maven
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+    - name: Package the Application
+      run: mvn package
