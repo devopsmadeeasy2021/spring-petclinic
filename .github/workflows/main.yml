@@ -1,44 +1,76 @@
-name: Java CI with Maven
+name: Java
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+env:
+  IMAGE_NAME: "test-maven-app"
+  DOCKERHUB_USERNAME: "kunchalavikram"	  
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout SCM
-      uses: actions/checkout@v4
-    - name: Setup Java and Maven
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-    - name: Cache local Maven repository
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-maven-
-    - name: Test the Application
-      run: mvn test
   build:
     runs-on: ubuntu-latest
-    needs: test
     steps:
     - name: Checkout SCM
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
+    - name: list workspace contents
+      run: ls -al ${{ github.workspace }}
     - name: Setup Java and Maven
       uses: actions/setup-java@v4
       with:
-        distribution: 'temurin'
+        distribution: 'temurin' 
         java-version: '17'
-    - name: Cache local Maven repository
-      uses: actions/cache@v3
-      with:
-        path: ~/.m2/repository
-        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-        restore-keys: |
-          ${{ runner.os }}-maven-
     - name: Package the Application
-      run: mvn -DskipTests=true package
+      run: |
+        mvn -B package
+        ls -al ${{ github.workspace }}/target
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: jar-file
+        path: target/*.jar
+        if-no-files-found: 'error'
+        retention-days: 1 day
+
+  dockerize:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Checkout SCM
+      uses: actions/checkout@v3
+    - name: Download Artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: jar-file
+        path: target
+    - name: Check the JAR file
+      run: ls -al ${{ github.workspace }}/target		  
+    - name: Dockerize the Application
+      run: docker build -t ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME}}:${{ github.run_number }} .
+    - name: Save the image
+      run: docker save ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME}}:${{ github.run_number }} > ${{ github.workspace }}/${{ env.IMAGE_NAME}}.tar 
+    - name: Upload tar file
+      uses: actions/upload-artifact@v4
+      with:
+        name: tar-file
+        path: ${{ github.workspace }}/${{ env.IMAGE_NAME}}.tar 
+        if-no-files-found: 'error'
+        retention-days: 1 day
+
+  push_to_dockerhub:
+    runs-on: ubuntu-latest
+    needs: dockerize
+    steps:
+    - name: Download tar file
+      uses: actions/download-artifact@v4
+      with:
+        name: tar-file
+    - name: Load the image
+      run: docker load < ${{ github.workspace }}/${{ env.IMAGE_NAME}}.tar
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ env.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Push the image
+      run: docker push ${{ env.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME}}:${{ github.run_number }}
